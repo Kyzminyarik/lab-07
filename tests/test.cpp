@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <header.hpp>
+#include <suggestion.hpp>
 
 TEST(Example, EmptyTest) {
     EXPECT_THROW(example(), std::runtime_error);

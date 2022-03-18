@@ -8,14 +8,14 @@ using json = nlohmann::json;
 
 class JsonStorage{
 public:
-    JsonStorage(const std::string filename) : _filename(filename) {}
-    json get_storage() const;
+    explicit JsonStorage(const std::string filename) : _filename(filename) {}
+    [[nodiscard]]json get_storage() const;
     void load();
 
     
 private:
-json _storage;
-std::string _filename;
+    json _storage;
+    std::string _filename;
 };
 
 
