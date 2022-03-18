@@ -3,6 +3,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
 #include <boost/config.hpp>
+#include <boost/program_options.hpp>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -177,41 +178,86 @@ void do_session(net::ip::tcp::socket& socket,
   }
 }
 
-
+namespace po = boost::program_options;
 
 int main(int argc, char *argv[]) {
+
   std::shared_ptr<std::timed_mutex> mutex =
       std::make_shared<std::timed_mutex>();
-  std::shared_ptr<JsonStorage> storage = std::make_shared<JsonStorage>(
-      "../suggestions.json");
+  std::shared_ptr<JsonStorage> storage =
+      std::make_shared<JsonStorage>("../suggestions.json");
   std::shared_ptr<suggestionsColl> suggestions =
       std::make_shared<suggestionsColl>();
-  try {
-    if (argc != 3) {
-      std::cerr << "Usage: suggestion_server <address> <port>\n"
-                << "Example:\n"
-                << "    http-server-sync 0.0.0.0 8080\n";
+
+//  po::options_description desc("Options");
+//  desc.add_options()("help", "Show help message")(
+//      "address, a", po::value<std::string>(), "Address")(
+//      "port, p", po::value<std::string>(), "Port");
+//  po::variables_map vm;
+//  po::store(po::parse_command_line(argc, argv, desc), vm);
+//  po::notify(vm);
+//
+//  if (vm.count("help")) {
+//    std::cout << desc << '\n';
+//    return 0;
+//  }
+
+//  std::string addr;
+//  if (vm.count("address")) {
+//    if (vm.at("address").as<std::string>().empty()) {
+//      throw std::runtime_error{"empty address"};
+//    }
+//    addr = vm.at("address").as<std::string>();
+//  }
+//  auto const address = net::ip::make_address(addr);
+//
+//  std::string p;
+//  if (vm.count("port")) {
+//    if (vm.at("port").as<std::string>().empty()) {
+//      throw std::runtime_error{"empty port"};
+//    }
+//    p = vm.at("port").as<std::string>();
+//  }
+//  auto const port = static_cast<uint16_t>(std::stoi(p));
+//
+//  net::io_context ctx{1};
+//  tcp::acceptor acceptor{ctx, {address, port}};
+//  std::thread{suggestion_updater, storage, suggestions, mutex}.detach();
+
+//  for (;;){
+//    tcp::socket socket{ctx};
+//    acceptor.accept(socket);
+//    std::thread{std::bind(&do_session, std::move(socket),
+//                          suggestions, mutex)}.detach();
+//  }
+
+    try {
+      if (argc != 3) {
+        std::cerr << "Usage: suggestion_server <address> <port>\n"
+                  << "Example:\n"
+                  << "    http-server-sync 0.0.0.0 8080\n";
+        return EXIT_FAILURE;
+      }
+      auto const address = net::ip::make_address(argv[1]);
+      auto const port = static_cast<uint16_t>(std::atoi(argv[2]));
+
+      net::io_context ioc{1};
+
+      tcp::acceptor acceptor {
+          ioc, { address, port }
+      };
+      std::thread{suggestion_updater, storage, suggestions, mutex}.detach();
+      for (;;) {
+        tcp::socket socket{ioc};
+
+        acceptor.accept(socket);
+
+        std::thread{std::bind(&do_session, std::move(socket),
+                              suggestions, mutex)}
+            .detach();
+      }
+    } catch (std::exception& e) {
+      std::cerr << e.what() << '\n';
       return EXIT_FAILURE;
     }
-    auto const address = net::ip::make_address(argv[1]);
-    auto const port = static_cast<uint16_t>(std::atoi(argv[2]));
-
-    net::io_context ioc{1};
-
-    tcp::acceptor acceptor {
-        ioc, { address, port }
-    };
-    std::thread{suggestion_updater, storage, suggestions, mutex}.detach();
-    for (;;) {
-      tcp::socket socket{ioc};
-
-      acceptor.accept(socket);
-
-      std::thread{std::bind(&do_session, std::move(socket), suggestions, mutex)}
-          .detach();
-    }
-  } catch (std::exception& e) {
-    std::cerr << e.what() << '\n';
-    return EXIT_FAILURE;
-  }
 }

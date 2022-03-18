@@ -32,8 +32,8 @@ hunter_add_package(GTest)
 find_package(GTest CONFIG REQUIRED)
 hunter_add_package(Beast)
 find_package(Beast CONFIG REQUIRED)
-hunter_add_package(Boost COMPONENTS  thread filesystem)
-find_package(Boost CONFIG REQUIRED thread filesystem)
+hunter_add_package(Boost COMPONENTS  thread filesystem program_options)
+find_package(Boost CONFIG REQUIRED thread filesystem program_options)
 find_package(Threads)
 hunter_add_package(nlohmann_json)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -53,7 +53,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "$<INSTALL_INTERFACE:include>"
 )
 
-target_link_libraries(demo ${PROJECT_NAME} ${Boost_LIBRARIES} Boost::thread Boost::filesystem Beast::Beast)
+target_link_libraries(demo ${PROJECT_NAME} ${Boost_LIBRARIES} Boost::thread Boost::filesystem Beast::Beast Boost::program_options)
 target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
 if(BUILD_TESTS)
