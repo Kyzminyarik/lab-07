@@ -26,7 +26,24 @@ std::string make_json(const json& data) {
     ss << std::setw(4) << data;
   return ss.str();
 }
+//////////////////////////////////////////////////////////////////////////////
+template <class Stream>
+struct send_lambda {
+  Stream& stream_;
+  bool& close_;
+  beast::error_code& ec_;
 
+  explicit send_lambda(Stream& stream, bool& close, beast::error_code& ec)
+      : stream_(stream), close_(close), ec_(ec) {}
+
+  template <bool isRequest, class Body, class Fields>
+  void operator()(http::message<isRequest, Body, Fields>&& msg) const {
+    close_ = msg.need_eof();
+    http::serializer<isRequest, Body, Fields> sr{msg};
+    http::write(stream_, sr, ec_);
+  }
+};
+//////////////////////////////////////////////////////////////////////////////
 template <class Body, class Allocator, class Send>
 void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
                     Send&& send, const std::shared_ptr<std::timed_mutex>& mutex,
@@ -54,17 +71,6 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
     res.prepare_payload();
     return res;
   };
-
-//  auto const server_error =[&req](beast::string_view what) {
-//    http::response<http::string_body> res{http::status::internal_server_error,
-//                                          req.version()};
-//    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-//    res.set(http::field::content_type, "text/html");
-//    res.keep_alive(req.keep_alive());
-//    res.body() = "An error occurred: '" + std::string(what) + "'";
-//    res.prepare_payload();
-//    return res;
-//  };
 
   if( req.method() != http::verb::post){
     return send(bad_request("Unknown HTTP-method. You should use POST method"));
@@ -96,15 +102,6 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
   http::string_body::value_type body = make_json(result);
   auto const size = body.size();
 
-//  if (req.method() == http::verb::head){
-//    http::response<http::empty_body> res{http::status::ok, req.version()};
-//    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-//    res.set(http::field::content_type, "application/json");
-//    res.content_length(size);
-//    res.keep_alive(req.keep_alive());
-//    return send(std::move(res));
-//  }
-
   http::response<http::string_body> res{
       std::piecewise_construct, std::make_tuple(std::move(body)),
       std::make_tuple(http::status::ok, req.version())};
@@ -118,24 +115,7 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
 void fail(beast::error_code ec, char const* what) {
   std::cerr << what << ": " << ec.message() << "\n";
 }
-//////////////////////////////////////////////////////////////////////////////
-template <class Stream>
-struct send_lambda {
-  Stream& stream_;
-  bool& close_;
-  beast::error_code& ec_;
 
-  explicit send_lambda(Stream& stream, bool& close, beast::error_code& ec)
-      : stream_(stream), close_(close), ec_(ec) {}
-
-  template <bool isRequest, class Body, class Fields>
-  void operator()(http::message<isRequest, Body, Fields>&& msg) const {
-    close_ = msg.need_eof();
-    http::serializer<isRequest, Body, Fields> sr{msg};
-    http::write(stream_, sr, ec_);
-  }
-};
-//////////////////////////////////////////////////////////////////////////////
 void do_session(net::ip::tcp::socket& socket,
                 const std::shared_ptr<suggestionsColl>& collection,
                 const std::shared_ptr<std::timed_mutex>& mutex) {
@@ -189,48 +169,6 @@ int main(int argc, char *argv[]) {
   std::shared_ptr<suggestionsColl> suggestions =
       std::make_shared<suggestionsColl>();
 
-//  po::options_description desc("Options");
-//  desc.add_options()("help", "Show help message")(
-//      "address, a", po::value<std::string>(), "Address")(
-//      "port, p", po::value<std::string>(), "Port");
-//  po::variables_map vm;
-//  po::store(po::parse_command_line(argc, argv, desc), vm);
-//  po::notify(vm);
-//
-//  if (vm.count("help")) {
-//    std::cout << desc << '\n';
-//    return 0;
-//  }
-
-//  std::string addr;
-//  if (vm.count("address")) {
-//    if (vm.at("address").as<std::string>().empty()) {
-//      throw std::runtime_error{"empty address"};
-//    }
-//    addr = vm.at("address").as<std::string>();
-//  }
-//  auto const address = net::ip::make_address(addr);
-//
-//  std::string p;
-//  if (vm.count("port")) {
-//    if (vm.at("port").as<std::string>().empty()) {
-//      throw std::runtime_error{"empty port"};
-//    }
-//    p = vm.at("port").as<std::string>();
-//  }
-//  auto const port = static_cast<uint16_t>(std::stoi(p));
-//
-//  net::io_context ctx{1};
-//  tcp::acceptor acceptor{ctx, {address, port}};
-//  std::thread{suggestion_updater, storage, suggestions, mutex}.detach();
-
-//  for (;;){
-//    tcp::socket socket{ctx};
-//    acceptor.accept(socket);
-//    std::thread{std::bind(&do_session, std::move(socket),
-//                          suggestions, mutex)}.detach();
-//  }
-
     try {
       if (argc != 3) {
         std::cerr << "Usage: suggestion_server <address> <port>\n"
@@ -253,8 +191,7 @@ int main(int argc, char *argv[]) {
         acceptor.accept(socket);
 
         std::thread{std::bind(&do_session, std::move(socket),
-                              suggestions, mutex)}
-            .detach();
+                              suggestions, mutex)}.detach();
       }
     } catch (std::exception& e) {
       std::cerr << e.what() << '\n';
