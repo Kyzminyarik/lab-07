@@ -1,3 +1,4 @@
+// Copyright 2022 pvelp
 #include "json_storage.hpp"
 #include <fstream>
 #include <sstream>

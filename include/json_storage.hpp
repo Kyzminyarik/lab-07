@@ -1,5 +1,6 @@
-#ifndef JSON_STORAGE_HPP_
-#define JSON_STORAGE_HPP_
+// Copyright 2022 pvelp
+#ifndef INCLUDE_JSON_STORAGE_HPP_
+#define INCLUDE_JSON_STORAGE_HPP_
 #include "nlohmann/json.hpp"
 #include <iostream>
 #include <string>
@@ -12,11 +13,9 @@ public:
     [[nodiscard]]json get_storage() const;
     void load();
 
-    
 private:
     json _storage;
     std::string _filename;
 };
 
-
-#endif // JSON_STORAGE_HPP_
+#endif // INCLUDE_JSON_STORAGE_HPP_

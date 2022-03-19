@@ -1,7 +1,7 @@
-// Copyright 2021 Your Name <your_email>
+// Copyright 2022 pvelp
 
-#ifndef INCLUDE_EXAMPLE_HPP_
-#define INCLUDE_EXAMPLE_HPP_
+#ifndef INCLUDE_SUGGESTION_HPP_
+#define INCLUDE_SUGGESTION_HPP_
 
 #include <iostream>
 #include <string>
@@ -21,4 +21,4 @@ class suggestionsColl{
 
 auto example() -> void;
 
-#endif // INCLUDE_EXAMPLE_HPP_
+#endif // INCLUDE_SUGGESTION_HPP_
