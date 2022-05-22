@@ -1,4 +1,4 @@
-// Copyright 2022 pvelp
+// Copyright 2022 Kuzmin Yaroslav
 #ifndef INCLUDE_JSON_STORAGE_HPP_
 #define INCLUDE_JSON_STORAGE_HPP_
 #include "nlohmann/json.hpp"

@@ -1,5 +1,4 @@
-// Copyright 2022 pvelp
-
+// Copyright 2022 Kuzmin Yaroslav
 #include <stdexcept>
 
 #include <suggestion.hpp>
@@ -7,6 +6,7 @@
 suggestionsColl::suggestionsColl() { _suggestions = {}; }
 
 void suggestionsColl::update(json storage) {
+  //сортировка по косту
   std::sort(storage.begin(), storage.end(),
             [](const json& a, const json& b) -> bool {
               return a.at("cost") < b.at("cost");

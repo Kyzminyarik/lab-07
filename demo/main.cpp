@@ -26,7 +26,7 @@ std::string make_json(const json& data) {
     ss << std::setw(4) << data;
   return ss.str();
 }
-//////////////////////////////////////////////////////////////////////////////
+
 template <class Stream>
 struct send_lambda {
   Stream& stream_;
@@ -43,14 +43,14 @@ struct send_lambda {
     http::write(stream_, sr, ec_);
   }
 };
-//////////////////////////////////////////////////////////////////////////////
+
 template <class Body, class Allocator, class Send>
 void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
                     Send&& send, const std::shared_ptr<std::timed_mutex>& mutex,
                     const std::shared_ptr<suggestionsColl>& collection)
 {
-  // Returns a bad request response
-  auto const bad_request = [&req](beast::string_view ans) {
+
+  auto const bad_request = [&req](beast::string_view ans) {// если плохой запрос
     http::response<http::string_body> res{http::status::bad_request,
                                           req.version()};
     res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -61,7 +61,8 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
     return res;
   };
 
-  auto const not_found = [&req](beast::string_view target) {
+  auto const not_found = [&req](beast::string_view target) { // запрос прошел но
+                                                              // URL не найден
     http::response<http::string_body> res{http::status::not_found,
                                           req.version()};
     res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -72,16 +73,17 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
     return res;
   };
 
-  if( req.method() != http::verb::post){
-    return send(bad_request("Unknown HTTP-method. You should use POST method"));
+  if( req.method() != http::verb::post){//если запрос не пост то возвращаем
+                                        // плохрой запрос
+    return send(bad_request("Unknown HTTP-method.You should use POST method"));
   }
 
-  if (req.target() != "/v1/api/suggest"){
+  if (req.target() != "/v1/api/suggest"){//URL найден но не подходит
     return send(not_found(req.target()));
   }
 
   json input_body;
-  try{
+  try{  // если не удается распарсить запрос
     input_body = json::parse(req.body());
   } catch (std::exception& e){
     return send(bad_request(e.what()));
@@ -102,7 +104,7 @@ void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
   http::string_body::value_type body = make_json(result);
   auto const size = body.size();
 
-  http::response<http::string_body> res{
+  http::response<http::string_body> res{// ответ на удавшийся запрос
       std::piecewise_construct, std::make_tuple(std::move(body)),
       std::make_tuple(http::status::ok, req.version())};
   res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -116,15 +118,16 @@ void fail(beast::error_code ec, char const* what) {
   std::cerr << what << ": " << ec.message() << "\n";
 }
 
+//обработка соединения с сервером
 void do_session(net::ip::tcp::socket& socket,
                 const std::shared_ptr<suggestionsColl>& collection,
                 const std::shared_ptr<std::timed_mutex>& mutex) {
   bool close = false;
   beast::error_code ec;
-  beast::flat_buffer buffer;
+  beast::flat_buffer buffer;//буфер для сохранения при чтение
   send_lambda<tcp::socket> lambda{socket, close, ec};
 
-  for (;;) {
+  for (;;) {//чтение запроса
     http::request<http::string_body> req;
     http::read(socket, buffer, req, ec);
     if (ec == http::error::end_of_stream) break;
@@ -134,17 +137,14 @@ void do_session(net::ip::tcp::socket& socket,
     if (ec) return fail(ec, "write");
     if(close)
     {
-      // This means we should close the connection, usually because
-      // the response indicated the "Connection: close" semantic.
       break;
     }
   }
-  // Send a TCP shutdown
+  // отключение TCP
   socket.shutdown(tcp::socket::shutdown_send, ec);
-  // At this point the connection is closed gracefully
 }
 
-[[noreturn]]void suggestion_updater(
+[[noreturn]]void suggestion_updater(//обновление данных раз в 15 минут
     const std::shared_ptr<JsonStorage>& storage,
     const std::shared_ptr<suggestionsColl>& suggestions,
     const std::shared_ptr<std::timed_mutex>& mutex) {
@@ -167,7 +167,7 @@ int main(int argc, char *argv[]) {
   std::shared_ptr<JsonStorage> storage =
       std::make_shared<JsonStorage>("../suggestions.json");
   std::shared_ptr<suggestionsColl> suggestions =
-      std::make_shared<suggestionsColl>();
+      std::make_shared<suggestionsColl>();//указатели
 
     try {
       if (argc != 3) {
@@ -177,7 +177,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
       auto const address = net::ip::make_address(argv[1]);
-      auto const port = static_cast<uint16_t>(std::atoi(argv[2]));
+      auto const port = static_cast<uint16_t>(std::atoi(argv[2]));//atoi
+      //конвертирует строку в инт
 
       net::io_context ioc{1};
 
@@ -185,6 +186,8 @@ int main(int argc, char *argv[]) {
           ioc, { address, port }
       };
       std::thread{suggestion_updater, storage, suggestions, mutex}.detach();
+      //detech отделяет поток выаолнения от отбъекта
+      //поток может быть уничтожен но сервер продолжат работу
       for (;;) {
         tcp::socket socket{ioc};
 

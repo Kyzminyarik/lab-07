@@ -1,4 +1,4 @@
-// Copyright 2022 pvelp
+// Copyright 2022 Kuzmin Yaroslav
 #include "json_storage.hpp"
 #include <fstream>
 #include <sstream>

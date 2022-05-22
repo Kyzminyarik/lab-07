@@ -1,4 +1,4 @@
-// Copyright 2022 pvelp
+// Copyright 2022 Kuzmin Yaroslav
 
 #ifndef INCLUDE_SUGGESTION_HPP_
 #define INCLUDE_SUGGESTION_HPP_
